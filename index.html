@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>⚔️ 무한의 대장간: 마스터피스</title>
+    <style>
+        :root { --common: #a0a0a0; --uncommon: #1eff00; --rare: #0070dd; --epic: #a335ee; --legend: #ff8c00; --mythic: #ff00ff; --danger: #ff2e63; --revenge: #ff4500; }
+        body { background: #0b0b12; color: #eee; font-family: 'Malgun Gothic', sans-serif; display: flex; flex-direction: column; align-items: center; margin: 0; padding-bottom: 50px; }
+        #header { width: 100%; background: #181824; padding: 15px 20px; display: flex; justify-content: space-around; align-items: center; border-bottom: 3px solid var(--revenge); position: sticky; top: 0; z-index: 100; box-sizing: border-box; }
+        .gold-text { color: #ffd700; font-weight: bold; font-size: 1.5rem; text-shadow: 0 0 10px rgba(255,215,0,0.5); }
+        
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 20px; padding: 20px; max-width: 1200px; width: 100%; box-sizing: border-box; }
+        .box { background: #1c1c2e; border: 1px solid #3a3a5a; padding: 25px; border-radius: 12px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        
+        /* 복수 게이지 */
+        .gauge-bg { width: 100%; background: #000; height: 25px; border-radius: 12px; margin: 15px 0; overflow: hidden; border: 2px solid #444; position: relative; }
+        #revenge-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #ff4500, #ff0000); transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .gauge-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 0.8rem; font-weight: bold; color: white; text-shadow: 1px 1px 2px black; }
+
+        .sword-icon { font-size: 90px; height: 120px; line-height: 120px; margin: 10px 0; transition: transform 0.1s; text-shadow: 0 0 20px rgba(255,255,255,0.1); }
+        
+        /* 버튼 공통 */
+        .btn { background: #4ecca3; color: #111; border: none; padding: 14px; cursor: pointer; border-radius: 8px; width: 100%; margin: 6px 0; font-weight: 900; font-size: 1rem; transition: all 0.2s; text-transform: uppercase; }
+        .btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(78, 204, 163, 0.4); }
+        .btn:disabled { background: #333; color: #666; cursor: not-allowed; box-shadow: none; transform: none; }
+        
+        .btn-gamble { background: var(--danger); color: white; }
+        .btn-raid { background: var(--mythic); color: white; }
+        
+        /* 로그창 */
+        .log-container { background: #050508; height: 250px; overflow-y: auto; padding: 15px; font-size: 0.9rem; border-radius: 8px; text-align: left; border: 1px inset #333; font-family: 'Courier New', monospace; scroll-behavior: smooth; }
+        .log-entry { margin-bottom: 5px; border-bottom: 1px dashed #222; padding-bottom: 5px; }
+
+        .shake { animation: shake 0.2s infinite; }
+        @keyframes shake { 0% { transform: translate(2px, 2px) rotate(0deg); } 25% { transform: translate(-2px, -2px) rotate(-5deg); } 50% { transform: translate(2px, -2px) rotate(5deg); } 75% { transform: translate(-2px, 2px) rotate(-5deg); } 100% { transform: translate(2px, 2px) rotate(0deg); } }
+    </style>
+</head>
+<body>
+
+<div id="header">
+    <div class="gold-text">💰 <span id="gold">1000</span> G</div>
+    <div id="status-text" style="color: #4ecca3; font-weight:bold;">마을 대기 중</div>
+    <div id="pet-status" style="color: #ffd700; font-weight:bold;">🐾 펫: 없음</div>
+</div>
+
+<div class="game-grid">
+    <div class="box">
+        <h2 style="color: #4ecca3; margin-top:0;">⚒️ 전설의 대장간</h2>
+        
+        <div class="gauge-bg">
+            <div id="revenge-bar"></div>
+            <div class="gauge-text">분노 게이지 <span id="rev-percent">0</span>% (100%시 에픽 이상 확정)</div>
+        </div>
+
+        <div id="sword-display" class="sword-icon">🌑</div>
+        <div style="min-height: 90px;">
+            <h3 id="sword-name" style="margin: 10px 0;">장비 없음</h3>
+            <div id="sword-stats" style="color:#aaa; font-size:0.9rem;">위력: 0 | 강화: +0</div>
+            <div style="font-size: 0.85rem; margin-top:5px;">강화 성공률: <span id="rate" style="color:var(--danger); font-weight:bold;">-</span></div>
+        </div>
+
+        <button class="btn" onclick="craft()">새 무기 벼리기 (300 G)</button>
+        <button class="btn" id="btn-up" onclick="upgrade()" style="background:#f9ca24" disabled>강화 시도 (비용: 100 G)</button>
+        <button class="btn" id="btn-sell" style="background:#555; color:white;" onclick="sell()" disabled>현재 무기 판매</button>
+    </div>
+
+    <div class="box">
+        <h2 style="color: var(--danger); margin-top:0;">🎲 모험과 파멸</h2>
+        
+        <div style="display: flex; gap: 10px;">
+            <button class="btn" id="btn-dun" onclick="toggleDungeon()" disabled>던전 (자동 파밍)</button>
+            <button class="btn btn-raid" id="btn-raid" onclick="bossRaid()" disabled>🐲 보스 토벌</button>
+        </div>
+
+        <hr style="border: 0.5px solid #333; margin: 20px 0;">
+        
+        <div style="text-align: left; background: rgba(255,215,0,0.05); padding: 15px; border-radius: 8px; border: 1px solid #443300; margin-bottom: 15px;">
+            <h4 style="margin: 0 0 10px 0; color: #ffd700;">🐾 황금 드래곤 펫 (10,000 G)</h4>
+            <p style="font-size: 0.8rem; margin:0 0 10px 0; color:#ccc;">효과: 초당 50G 자동 획득 & 강화 확률 +10% 보정</p>
+            <button class="btn" id="btn-pet" onclick="buyPet()" style="background:#ffd700; color:#000;">알 부화시키기</button>
+        </div>
+
+        <button class="btn btn-gamble" onclick="gamble()">주사위 도박 (가진 돈의 50% 베팅)</button>
+        
+        <div class="log-container" id="game-log"></div>
+        <button onclick="resetGame()" style="background:transparent; border:1px solid #555; color:#888; margin-top:10px; cursor:pointer; padding:5px; border-radius:5px; font-size:0.7rem;">데이터 초기화</button>
+    </div>
+</div>
+
+<script>
+    // --- 1. 절차적 아이템 생성용 데이터 사전 ---
+    const WEAPON_TYPES = ["단검", "장검", "대검", "도끼", "망치", "창", "할버드", "카타나", "레이피어", "낫", "철퇴", "클레이모어", "츠바이핸더", "글레이브", "트라이던트"];
+    
+    // 등급별 접두사
+    const PREFIXES = {
+        common: ["낡은", "녹슨", "이끼낀", "구부러진", "이가 빠진", "흔한", "평범한"],
+        uncommon: ["쓸만한", "단단한", "무거운", "날카로운", "반짝이는", "제련된"],
+        rare: ["정예병의", "마력이 깃든", "은빛의", "검투사의", "바람을 가르는", "핏빛"],
+        epic: ["고대의", "저주받은", "영광스러운", "환영의", "왕실의", "드래곤 뼈"],
+        legend: ["전설의", "대악마의", "천상의", "파멸을 부르는", "세계수의", "심연의"],
+        mythic: ["신을 베는", "우주를 가르는", "전지전능한", "창조주의", "시간을 지배하는"]
+    };
+
+    // --- 2. 게임 상태 관리 (Local Storage 연동) ---
+    let state = JSON.parse(localStorage.getItem('forge_save_v2')) || {
+        gold: 1000, weapon: null, revenge: 0, hasPet: false
+    };
+    
+    // 런타임 변수 (저장 안함)
+    let isDungeon = false;
+    let dungeonInterval = null;
+    let petInterval = null;
+
+    // --- 3. 코어 시스템 초기화 ---
+    function init() {
+        if (state.hasPet) startPetLogic();
+        updateUI();
+        addLog("시스템 정상 복구 완료. 대장간에 오신 것을 환영합니다.", "#aaa");
+    }
+
+    function saveGame() {
+        localStorage.setItem('forge_save_v2', JSON.stringify(state));
+        updateUI();
+    }
+
+    function resetGame() {
+        if(confirm("정말 모든 데이터를 지우고 처음부터 시작하시겠습니까?")) {
+            localStorage.removeItem('forge_save_v2');
+            location.reload();
+        }
+    }
+
+    function addLog(msg, color = "#eee") {
+        const logBox = document.getElementById('game-log');
+        const entry = document.createElement('div');
+        entry.className = "log-entry";
+        entry.style.color = color;
+        // 시간 추가
+        const now = new Date();
+        const timeStr = `${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
+        entry.innerHTML = `<span style="color:#555">[${timeStr}]</span> ${msg}`;
+        
+        logBox.appendChild(entry);
+        logBox.scrollTop = logBox.scrollHeight; // 자동 스크롤 버그 픽스
+    }
+
+    // --- 4. 대장간 로직 (제작 및 강화) ---
+    function craft() {
+        if (state.gold < 300) return alert("골드가 부족합니다!");
+        if (state.weapon && !confirm("이미 무기가 있습니다. 새로 만들면 기존 무기는 파괴됩니다!")) return;
+        
+        exitDungeon(); // 던전에 있었다면 강제 종료
+        state.gold -= 300;
+        
+        let roll = Math.random() * 100;
+        let rarityData;
+
+        // 복수 게이지 시스템 발동 (100% 달성 시)
+        if (state.revenge >= 100) {
+            addLog("🔥 분노가 폭발합니다! 에픽 등급 이상이 확정됩니다!", "var(--revenge)");
+            roll = Math.random() * 5; // 0~5 사이 값 (Epic~Mythic 구간)
+            state.revenge = 0;
+        }
+
+        // 등급 판정 로직
+        if (roll < 0.1) rarityData = { key: "mythic", name: "신화", color: "var(--mythic)", basePow: 2000 };
+        else if (roll < 1) rarityData = { key: "legend", name: "전설", color: "var(--legend)", basePow: 600 };
+        else if (roll < 5) rarityData = { key: "epic", name: "에픽", color: "var(--epic)", basePow: 250 };
+        else if (roll < 20) rarityData = { key: "rare", name: "희귀", color: "var(--rare)", basePow: 100 };
+        else if (roll < 50) rarityData = { key: "uncommon", name: "고급", color: "var(--uncommon)", basePow: 40 };
+        else rarityData = { key: "common", name: "일반", color: "var(--common)", basePow: 10 };
+
+        // 절차적 이름 생성
+        const prefixArray = PREFIXES[rarityData.key];
+        const randomPrefix = prefixArray[Math.floor(Math.random() * prefixArray.length)];
+        const randomType = WEAPON_TYPES[Math.floor(Math.random() * WEAPON_TYPES.length)];
+        
+        state.weapon = {
+            name: `${randomPrefix} ${randomType}`,
+            level: 0,
+            power: rarityData.basePow + Math.floor(Math.random() * (rarityData.basePow * 0.2)), // 스탯 랜덤성 20% 부여
+            color: rarityData.color,
+            rarityName: rarityData.name
+        };
+
+        addLog(`망치질 끝에 <b>[${state.weapon.name}]</b> (${state.weapon.rarityName})을(를) 완성했습니다!`, state.weapon.color);
+        saveGame();
+    }
+
+    function upgrade() {
+        if(!state.weapon) return;
+        
+        const cost = 100 + (state.weapon.level * 200);
+        if (state.gold < cost) return alert(`강화 비용(${cost}G)이 부족합니다!`);
+        
+        state.gold -= cost;
+        
+        // 강화 성공률 계산 (펫 효과 +10%)
+        let successRate = Math.max(5, 95 - (state.weapon.level * 10)); 
+        if (state.hasPet) successRate += 10;
+        successRate = Math.min(100, successRate); // 100% 초과 방지
+
+        const display = document.getElementById('sword-display');
+        display.classList.add('shake');
+
+        setTimeout(() => {
+            display.classList.remove('shake');
+            const chance = Math.random() * 100;
+
+            if (chance <= successRate) {
+                state.weapon.level++;
+                state.weapon.power = Math.floor(state.weapon.power * 1.5); // 1.5배 상승
+                addLog(`✨ 깡! 강화 성공! <b>[+${state.weapon.level} ${state.weapon.name}]</b>`, "#f9ca24");
+            } else {
+                addLog(`💥 콰직! 무기가 산산조각 났습니다. 분노가 차오릅니다.`, "var(--danger)");
+                state.revenge = Math.min(100, state.revenge + 15 + (state.weapon.level * 2)); // 렙업된 무기일수록 분노 많이참
+                state.weapon = null;
+                exitDungeon();
+            }
+            saveGame();
+        }, 400);
+    }
+
+    function sell() {
+        if (!state.weapon) return;
+        const sellPrice = state.weapon.power * 2;
+        state.gold += sellPrice;
+        addLog(`장비를 상인에게 넘기고 ${sellPrice}G를 받았습니다.`, "#aaa");
+        state.weapon = null;
+        exitDungeon();
+        saveGame();
+    }
+
+    // --- 5. 모험 로직 (던전 & 레이드) ---
+    function toggleDungeon() {
+        if (isDungeon) exitDungeon();
+        else enterDungeon();
+    }
+
+    function enterDungeon() {
+        if(!state.weapon) return;
+        isDungeon = true;
+        addLog("⚔️ 어두운 던전에 진입했습니다. 몬스터 사냥을 시작합니다.", "var(--rare)");
+        
+        dungeonInterval = setInterval(() => {
+            const earn = Math.floor(state.weapon.power / 2);
+            state.gold += earn;
+            document.getElementById('gold').innerText = state.gold;
+            document.getElementById('status-text').innerText = `던전 사냥 중 (초당 +${earn}G)`;
+        }, 1000);
+        
+        updateUI();
+    }
+
+    function exitDungeon() {
+        isDungeon = false;
+        clearInterval(dungeonInterval);
+        document.getElementById('status-text').innerText = `마을 대기 중`;
+        updateUI();
+    }
+
+    function bossRaid() {
+        if(!state.weapon) return;
+        if(state.weapon.power < 500) {
+            return alert("무기 위력이 500 이상이어야 보스에게 흠집이라도 낼 수 있습니다!");
+        }
+        
+        exitDungeon();
+        addLog("🐲 거대한 드래곤 보스에게 도전합니다...!!", "var(--mythic)");
+        
+        // 보스전 승률 계산 (위력 5000에서 100% 승리)
+        const winChance = Math.min(95, (state.weapon.power / 5000) * 100);
+        
+        setTimeout(() => {
+            if(Math.random() * 100 <= winChance) {
+                const reward = state.weapon.power * 10;
+                state.gold += reward;
+                addLog(`🏆 <b>토벌 성공!</b> 보스의 심장을 뚫고 ${reward}G를 획득했습니다!`, "var(--legend)");
+            } else {
+                addLog(`💀 <b>토벌 실패...</b> 드래곤의 브레스에 무기가 녹아내렸습니다.`, "var(--danger)");
+                state.revenge = Math.min(100, state.revenge + 50);
+                state.weapon = null;
+            }
+            saveGame();
+        }, 1000);
+    }
+
+    // --- 6. 도박 & 펫 시스템 ---
+    function gamble() {
+        const bet = Math.floor(state.gold / 2);
+        if (bet <= 0) return alert("도박에 걸 돈이 없습니다.");
+        
+        state.gold -= bet;
+        addLog(`🎲 ${bet}G를 걸고 주사위를 굴립니다...`);
+        
+        setTimeout(() => {
+            if (Math.random() < 0.40) { // 40% 승률
+                const win = bet * 3; // 3배 배당
+                state.gold += win;
+                addLog(`🎉 <b>잭팟!</b> 주사위가 대박을 터뜨려 ${win}G를 땄습니다!`, "var(--uncommon)");
+            } else {
+                addLog(`💸 꽝... 돈을 전부 잃었습니다. 타짜의 냄새가 납니다.`, "#888");
+            }
+            saveGame();
+        }, 500);
+    }
+
+    function buyPet() {
+        if (state.gold < 10000) return alert("부화 비용(10,000G)이 부족합니다!");
+        state.gold -= 10000;
+        state.hasPet = true;
+        addLog("🐉 알이 깨지며 <b>황금 드래곤</b>이 태어났습니다! 든든한 조력자가 생겼습니다.", "var(--legend)");
+        startPetLogic();
+        saveGame();
+    }
+
+    function startPetLogic() {
+        document.getElementById('btn-pet').disabled = true;
+        document.getElementById('btn-pet').innerText = "부화 완료";
+        document.getElementById('pet-status').innerText = "🐾 펫: 황금 드래곤 (활성)";
+        
+        if(petInterval) clearInterval(petInterval);
+        petInterval = setInterval(() => {
+            state.gold += 50;
+            document.getElementById('gold').innerText = state.gold;
+        }, 1000);
+    }
+
+    // --- 7. UI 업데이트 ---
+    function updateUI() {
+        document.getElementById('gold').innerText = state.gold;
+        document.getElementById('rev-percent').innerText = state.revenge;
+        document.getElementById('revenge-bar').style.width = state.revenge + "%";
+        
+        const w = state.weapon;
+        const btnUp = document.getElementById('btn-up');
+        const btnSell = document.getElementById('btn-sell');
+        const btnDun = document.getElementById('btn-dun');
+        const btnRaid = document.getElementById('btn-raid');
+
+        if (w) {
+            document.getElementById('sword-display').innerText = "🗡️";
+            document.getElementById('sword-display').style.color = w.color;
+            document.getElementById('sword-name').innerHTML = `+${w.level} ${w.name} <span style="font-size:0.7rem; background:#333; padding:2px 5px; border-radius:3px;">${w.rarityName}</span>`;
+            document.getElementById('sword-name').style.color = w.color;
+            
+            const upCost = 100 + (w.level * 200);
+            document.getElementById('sword-stats').innerText = `위력: ${w.power} | 다음 강화: ${upCost}G`;
+            
+            let rate = Math.max(5, 95 - (w.level * 10)) + (state.hasPet ? 10 : 0);
+            rate = Math.min(100, rate);
+            document.getElementById('rate').innerText = rate + "%";
+            
+            btnUp.disabled = false;
+            btnSell.disabled = false;
+            btnDun.disabled = false;
+            btnRaid.disabled = w.power < 500; // 위력 500 이상만 레이드 가능
+            btnUp.innerText = `강화 시도 (비용: ${upCost} G)`;
+        } else {
+            document.getElementById('sword-display').innerText = "🌑";
+            document.getElementById('sword-display').style.color = "#fff";
+            document.getElementById('sword-name').innerText = "장비 없음";
+            document.getElementById('sword-name').style.color = "#fff";
+            document.getElementById('sword-stats').innerText = "망치를 눌러 새 무기를 만드세요";
+            document.getElementById('rate').innerText = "-";
+            
+            btnUp.disabled = true;
+            btnSell.disabled = true;
+            btnDun.disabled = true;
+            btnRaid.disabled = true;
+            btnUp.innerText = `강화 불가`;
+        }
+
+        btnDun.innerText = isDungeon ? "던전 탈출 (마을로)" : "던전 진입 (자동 파밍)";
+        btnDun.style.background = isDungeon ? "#555" : "var(--rare)";
+        btnDun.style.color = "white";
+    }
+
+    // 게임 시작 시 초기화 함수 실행
+    window.onload = init;
+</script>
+</body>
+</html>
