@@ -62,6 +62,32 @@
         <button class="btn" onclick="craft()">새 무기 벼리기 (300 G)</button>
         <button class="btn" id="btn-up" onclick="upgrade()" style="background:#f9ca24" disabled>강화 시도 (비용: 100 G)</button>
         <button class="btn" id="btn-sell" style="background:#555; color:white;" onclick="sell()" disabled>현재 무기 판매</button>
+        function sell() {
+    if (!state.weapon) return;
+
+    // 1. 기본 위력가 (5배 상향)
+    let baseValue = state.weapon.power * 5;
+
+    // 2. 강화 레벨에 따른 기하급수적 보너스 (1.2의 n승)
+    let levelBonus = Math.pow(1.2, state.weapon.level);
+
+    // 3. 희귀도에 따른 프리미엄 배율
+    let rarityMultiplier = 1;
+    if (state.weapon.rarityName === "신화") rarityMultiplier = 5;
+    else if (state.weapon.rarityName === "전설") rarityMultiplier = 2.5;
+    else if (state.weapon.rarityName === "에픽") rarityMultiplier = 1.5;
+
+    // 4. 최종 가격 계산 및 정수화
+    const sellPrice = Math.floor(baseValue * levelBonus * rarityMultiplier);
+
+    // 골드 추가 및 로그 출력
+    state.gold += sellPrice;
+    addLog(`💰 <b>[+${state.weapon.level} ${state.weapon.name}]</b>을 상인에게 팔아 <b>${sellPrice.toLocaleString()}G</b>를 챙겼습니다!`, "#ffd700");
+    
+    state.weapon = null;
+    exitDungeon();
+    saveGame();
+}
     </div>
 
     <div class="box">
